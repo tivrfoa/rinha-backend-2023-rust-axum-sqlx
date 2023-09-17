@@ -221,30 +221,27 @@ fn is_data_nascimento_valida(born_date: &str) -> bool {
 			dn_parts[1].len() != 2 || dn_parts[2].len() != 2 {
 		return false;
 	}
-	let year = dn_parts[0].parse::<u16>();
-	match year {
+
+	let year = match dn_parts[0].parse::<u16>(){
 		Ok(year) => {
 			if year == 0 {
-				eprintln!("invalid year: zero");
 				return false;
 			}
+			year
 		}
-		Err(e) => {
-			eprintln!("invalid year: {e}");
+		Err(_) => {
 			return false;
 		}
-	}
+	};
 
 	let month = match dn_parts[1].parse::<u8>() {
 		Ok(month) => {
 			if month == 0 || month > 12 {
-				eprintln!("invalid month: {month}");
 				return false;
 			}
 			month
 		}
-		Err(e) => {
-			eprintln!("invalid month: {e}");
+		Err(_) => {
 			return false;
 		}
 	};
@@ -252,17 +249,20 @@ fn is_data_nascimento_valida(born_date: &str) -> bool {
 	match dn_parts[2].parse::<u8>() {
 		Ok(day) => {
 			if day == 0 || day > 31 {
-				eprintln!("invalid day: {day}");
 				return false;
 			}
 			match month {
-				2 => if day > 28 { return false; } // TODO check leap year
+				2 => {
+					let is_leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+					if (is_leap_year && day > 29) || (!is_leap_year && day > 28) {
+						return false;
+					}
+				}
 				4 | 6 | 9 | 11 => if day == 31 { return false; }
 				_ => (),
 			}
 		}
-		Err(e) => {
-			eprintln!("invalid day: {e}");
+		Err(_) => {
 			return false;
 		}
 	}
