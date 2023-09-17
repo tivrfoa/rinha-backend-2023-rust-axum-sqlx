@@ -1,15 +1,11 @@
 FROM ubuntu:22.04
+# FROM axumsqlx:htop
 
-WORKDIR /axumsqlx
+WORKDIR /app
 
-# ENV RUST_BACKTRACE=FULL
-
-ADD .sqlx .sqlx
-
-ENV DATABASE_URL="postgres://root:1234@localhost/rinhadb"
+# ADD .sqlx .sqlx
+# ENV DATABASE_URL="postgres://root:1234@localhost/rinhadb"
 
 COPY ./target/release/rinha-backend-axum app
-
-EXPOSE 8080
 
 CMD ./app
