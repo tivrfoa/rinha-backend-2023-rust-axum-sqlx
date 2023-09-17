@@ -18,6 +18,7 @@ const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
 async fn main() {
     let max_connections = std::env::var("MAX_CONNECTIONS").unwrap_or("4".into()).parse::<u32>().unwrap();
     let acquire_timeout = std::env::var("ACQUIRE_TIMEOUT").unwrap_or("3".into()).parse::<u64>().unwrap();
+	println!("Max connections: {max_connections}\nAcquire Timeout: {acquire_timeout}");
 
     // set up connection pool
     let pool = PgPoolOptions::new()
@@ -110,33 +111,15 @@ async fn pesquisar_termo(
         },
     }
 }
-
 #[axum::debug_handler]
 async fn criar_pessoa(
     State(pool): State<PgPool>,
     Json(req): Json<CriarPessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
-	if req.apelido.len() > 32 || req.nome.len() > 100 {
-		return Err(StatusCode::UNPROCESSABLE_ENTITY);
-	}
-	let mut stack = String::with_capacity(100);
-    let stack: String = match req.stack {
-		Some(stacks) => {
-			if stacks[0].is_empty() || stacks[1].len() > 32 {
-				return Err(StatusCode::UNPROCESSABLE_ENTITY);
-			}
-			stack.push_str(&stacks[0]);
-			for s in stacks.into_iter().skip(1) {
-				if s.is_empty() || s.len() > 32 {
-					return Err(StatusCode::UNPROCESSABLE_ENTITY);
-				}
-				stack.push(' ');
-				stack.push_str(&s);
-			}
-			stack
-		}
-		None => "".to_string(),
+	let stack = match validate_person_and_return_stack(&req) {
+		Ok(s) => s,
+		Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
 	};
 
     let id = Uuid::new_v4();
@@ -194,5 +177,96 @@ pub struct PessoaDTO {
     pub nome: String,
     pub nascimento: String,
     pub stack: Option<Vec<String>>,
+}
+
+enum ValidationError {
+	InvalidInput
+}
+
+use ValidationError::*;
+
+fn validate_person_and_return_stack(req: &CriarPessoaDTO) -> Result<String, ValidationError> {
+	if req.apelido.len() > 32 || req.nome.len() > 100
+			|| !is_data_nascimento_valida(&req.nascimento) {
+		return Err(InvalidInput);
+	}
+
+	let mut stack = String::with_capacity(100);
+    let stack: String = match &req.stack {
+		Some(stacks) => {
+			if stacks[0].is_empty() || stacks[0].len() > 32 {
+				return Err(InvalidInput);
+			}
+			stack.push_str(&stacks[0]);
+			for s in stacks.into_iter().skip(1) {
+				if s.is_empty() || s.len() > 32 {
+					return Err(InvalidInput);
+				}
+				stack.push(' ');
+				stack.push_str(&s);
+			}
+			stack
+		}
+		None => "".to_string(),
+	};
+	Ok(stack)
+}
+
+fn is_data_nascimento_valida(born_date: &str) -> bool {
+	if born_date.len() != 10 {
+		return false;
+	}
+	let dn_parts: Vec<&str> = born_date.split('-').collect();
+	if dn_parts.len() != 3 || dn_parts[0].len() != 4 ||
+			dn_parts[1].len() != 2 || dn_parts[2].len() != 2 {
+		return false;
+	}
+	let year = dn_parts[0].parse::<u16>();
+	match year {
+		Ok(year) => {
+			if year == 0 {
+				eprintln!("invalid year: zero");
+				return false;
+			}
+		}
+		Err(e) => {
+			eprintln!("invalid year: {e}");
+			return false;
+		}
+	}
+
+	let month = match dn_parts[1].parse::<u8>() {
+		Ok(month) => {
+			if month == 0 || month > 12 {
+				eprintln!("invalid month: {month}");
+				return false;
+			}
+			month
+		}
+		Err(e) => {
+			eprintln!("invalid month: {e}");
+			return false;
+		}
+	};
+
+	match dn_parts[2].parse::<u8>() {
+		Ok(day) => {
+			if day == 0 || day > 31 {
+				eprintln!("invalid day: {day}");
+				return false;
+			}
+			match month {
+				2 => if day > 28 { return false; } // TODO check leap year
+				4 | 6 | 9 | 11 => if day == 31 { return false; }
+				_ => (),
+			}
+		}
+		Err(e) => {
+			eprintln!("invalid day: {e}");
+			return false;
+		}
+	}
+
+	true
 }
 
