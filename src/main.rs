@@ -48,8 +48,10 @@ async fn main() {
     let app = Router::new()
         .route("/pessoas/:id", get(consultar_pessoa))
         .route("/pessoas",
-            post(criar_pessoa).get(pesquisar_termo)
+            post(criar_pessoa)
+            .get(pesquisar_termo)
         )
+        .route("/contagem-pessoas", get(contagem_pessoas))
         .with_state(pool);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
@@ -75,6 +77,17 @@ async fn consultar_pessoa(
         Ok(pessoa) => Ok(Json(pessoa.to_pessoa_dto())),
         Err(_) => Err(StatusCode::NOT_FOUND),
     }
+}
+
+#[axum::debug_handler]
+async fn contagem_pessoas(
+    State(pool): State<PgPool>,
+) -> String {
+    sqlx::query!("SELECT COUNT(*) FROM PESSOAS")
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .count.unwrap().to_string()
 }
 
 #[derive(Deserialize)]
@@ -104,7 +117,6 @@ async fn pesquisar_termo(
     match query_result {
         Ok(pessoas) => {
             let pessoas: Vec<PessoaDTO> = pessoas.into_iter().map(|p| p.to_pessoa_dto()).collect();
-            dbg!(&pessoas);
             Ok(Json(pessoas))
         },
         Err(e) => {
