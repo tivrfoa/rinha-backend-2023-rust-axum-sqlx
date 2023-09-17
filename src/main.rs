@@ -18,7 +18,7 @@ use axum::{
     http::StatusCode,
     Json,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use sqlx::postgres::{PgPool, PgPoolOptions};
@@ -44,11 +44,10 @@ async fn main() {
 
     // build our application with some routes
     let app = Router::new()
-        .route(
-            "/",
-            get(using_connection_pool_extractor),
-        )
         .route("/pessoas/:id", get(consultar_pessoa))
+        .route("/pessoas",
+            post(criar_pessoa)
+        )
         .with_state(pool);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
@@ -59,21 +58,10 @@ async fn main() {
         .unwrap();
 }
 
-// we can extract the connection pool with `State`
-async fn using_connection_pool_extractor(
-    State(pool): State<PgPool>,
-) -> Result<String, (StatusCode, String)> {
-    sqlx::query_scalar("select 'hello world from pg'")
-        .fetch_one(&pool)
-        .await
-        .map_err(internal_error)
-}
-
 async fn consultar_pessoa(
     Path(id): Path<String>,
     State(pool): State<PgPool>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    dbg!(&id);
     let query_result = sqlx::query_as!(Pessoa,
         r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
          FROM PESSOAS P
@@ -85,6 +73,34 @@ async fn consultar_pessoa(
     match query_result {
         Ok(pessoa) => Ok(Json(pessoa.to_pessoa_dto())),
         Err(_) => Err(StatusCode::NOT_FOUND),
+    }
+}
+
+#[axum::debug_handler]
+async fn criar_pessoa(
+    State(pool): State<PgPool>,
+    Json(req): Json<CriarPessoaDTO>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let id = "uuid".to_string();
+    let stack = "todo".to_string();
+    let query_result = sqlx::query!(
+        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
+        values ($1, $2, $3, $4, $5)"#,
+        id,
+        req.apelido,
+        req.nome,
+        req.nascimento,
+        stack,
+    )
+        .execute(&pool)
+        .await;
+    dbg!(&query_result);
+    match query_result {
+        Ok(pessoa) => Ok((
+            StatusCode::CREATED,
+            [("location", format!("/pessoas/{}", id))],
+        )),
+        Err(_) => Err(StatusCode::UNPROCESSABLE_ENTITY),
     }
 }
 
