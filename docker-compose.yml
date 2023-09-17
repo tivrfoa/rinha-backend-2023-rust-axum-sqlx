@@ -1,13 +1,15 @@
 version: '3.5'
 services:
   api01: &api
-    image: ubuntu-rust-rinha:axumsqlx
+    image: ubuntu-rust-rinha:axumsqlx2
     # build: .
     environment:
       HTTP_PORT: 8080
       DB_HOST: localhost
       REDIS_HOST: localhost
       POOL_SIZE: 30
+      MAX_CONNECTIONS: 30
+      ACQUIRE_TIMEOUT: 5
     depends_on:
       - db
     deploy:
@@ -24,6 +26,8 @@ services:
       DB_HOST: localhost
       REDIS_HOST: localhost
       POOL_SIZE: 30
+      MAX_CONNECTIONS: 30
+      ACQUIRE_TIMEOUT: 5
 
   nginx: # Load Balancer
     image: nginx:latest

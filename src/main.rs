@@ -35,11 +35,13 @@ const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
 
 #[tokio::main]
 async fn main() {
+    let max_connections = std::env::var("MAX_CONNECTIONS").unwrap_or("4".into()).parse::<u16>().unwrap();
+    let acquire_timeout = std::env::var("ACQUIRE_TIMEOUT").unwrap_or("3".into()).parse::<u16>().unwrap();
 
     // set up connection pool
     let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .acquire_timeout(Duration::from_secs(5))
+        .max_connections(max_connections)
+        .acquire_timeout(Duration::from_secs(acquire_timeout))
         .connect(DATABASE_URL)
         .await
         .expect("can't connect to database");
