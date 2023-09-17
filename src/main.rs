@@ -1,18 +1,3 @@
-//! Example of application using <https://github.com/launchbadge/sqlx>
-//!
-//! Run with
-//!
-//! ```not_rust
-//! cargo run -p example-sqlx-postgres
-//! ```
-//!
-//! Test with curl:
-//!
-//! ```not_rust
-//! curl 127.0.0.1:3000
-//! curl -X POST 127.0.0.1:3000
-//! ```
-
 use axum::{
     extract::{Path, State, Query},
     http::StatusCode,
@@ -21,13 +6,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sqlx::postgres::{PgPool, PgPoolOptions};
-
 use serde::{Deserialize, Serialize};
-
+use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::net::SocketAddr;
 use std::time::Duration;
-
 use uuid::Uuid;
 
 const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
@@ -134,11 +116,30 @@ async fn criar_pessoa(
     State(pool): State<PgPool>,
     Json(req): Json<CriarPessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let id = Uuid::new_v4();
+
+	if req.apelido.len() > 32 || req.nome.len() > 100 {
+		return Err(StatusCode::UNPROCESSABLE_ENTITY);
+	}
+	let mut stack = String::with_capacity(100);
     let stack: String = match req.stack {
-		Some(stacks) => stacks.join(" "),
+		Some(stacks) => {
+			if stacks[0].is_empty() || stacks[1].len() > 32 {
+				return Err(StatusCode::UNPROCESSABLE_ENTITY);
+			}
+			stack.push_str(&stacks[0]);
+			for s in stacks.into_iter().skip(1) {
+				if s.is_empty() || s.len() > 32 {
+					return Err(StatusCode::UNPROCESSABLE_ENTITY);
+				}
+				stack.push(' ');
+				stack.push_str(&s);
+			}
+			stack
+		}
 		None => "".to_string(),
 	};
+
+    let id = Uuid::new_v4();
     let query_result = sqlx::query!(
         r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
         values ($1, $2, $3, $4, $5)"#,
