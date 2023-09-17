@@ -121,8 +121,9 @@ async fn pesquisar_termo(
             Ok(Json(pessoas))
         },
         Err(e) => {
-            dbg!(e);
-            panic!("Failed to search by term: {}", t);
+            eprintln!("{}", e);
+            // what to do here ...? return empty result for now
+            Ok(Json(vec![]))
         },
     }
 }
