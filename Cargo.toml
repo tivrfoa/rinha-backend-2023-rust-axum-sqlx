@@ -11,4 +11,4 @@ serde = { version = "1.0.188", features = ["derive"] }
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "any", "postgres"] }
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-postgres = "0.7.10"
-
+uuid = { version = "1.4.1", features = ["v4", "fast-rng"] }

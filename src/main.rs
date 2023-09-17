@@ -29,6 +29,8 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use uuid::Uuid;
+
 const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
 
 #[tokio::main]
@@ -69,7 +71,6 @@ async fn consultar_pessoa(
         id)
         .fetch_one(&pool)
         .await;
-    dbg!(&query_result);
     match query_result {
         Ok(pessoa) => Ok(Json(pessoa.to_pessoa_dto())),
         Err(_) => Err(StatusCode::NOT_FOUND),
@@ -81,12 +82,12 @@ async fn criar_pessoa(
     State(pool): State<PgPool>,
     Json(req): Json<CriarPessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let id = "uuid".to_string();
+    let id = Uuid::new_v4();
     let stack = "todo".to_string();
     let query_result = sqlx::query!(
         r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
         values ($1, $2, $3, $4, $5)"#,
-        id,
+        id.to_string(),
         req.apelido,
         req.nome,
         req.nascimento,
@@ -94,41 +95,14 @@ async fn criar_pessoa(
     )
         .execute(&pool)
         .await;
-    dbg!(&query_result);
     match query_result {
-        Ok(pessoa) => Ok((
+        Ok(_) => Ok((
             StatusCode::CREATED,
             [("location", format!("/pessoas/{}", id))],
         )),
         Err(_) => Err(StatusCode::UNPROCESSABLE_ENTITY),
     }
 }
-
-/*
-(
-        StatusCode::NOT_FOUND,
-        [(header::CONTENT_TYPE, "text/plain")],
-        "foo",
-    )
-*/
-
-/// Utility function for mapping any error into a `500 Internal Server Error`
-/// response.
-fn internal_error<E>(err: E) -> (StatusCode, String)
-where
-    E: std::error::Error,
-{
-    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-}
-
-/*async fn create_user(
-    Json(payload): Json<CriarPessoaDTO>,
-) -> (StatusCode, Json<PessoaDTO>) {
-
-    // this will be converted into a JSON response
-    // with a status code of `201 Created`
-    (StatusCode::CREATED, Json(user))
-}*/
 
 #[derive(Debug, Deserialize)]
 pub struct CriarPessoaDTO {
