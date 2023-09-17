@@ -1,7 +1,7 @@
 version: '3.5'
 services:
   api01: &api
-    image: ubuntu-rust-rinha:axumsqlx2
+    image: axumsqlx:goodresult
     # build: .
     environment:
       HTTP_PORT: 8080
@@ -48,8 +48,8 @@ services:
       POSTGRES_DB: rinhadb
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    # command: postgres -c log_min_messages=panic -c log_min_error_statement=panic
-    command: postgres
+    command: postgres -c log_min_messages=panic -c log_min_error_statement=panic
+    # command: postgres
     network_mode: host
     deploy:
       resources:
