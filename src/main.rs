@@ -135,7 +135,10 @@ async fn criar_pessoa(
     Json(req): Json<CriarPessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let id = Uuid::new_v4();
-    let stack = "todo".to_string();
+    let stack: String = match req.stack {
+		Some(stacks) => stacks.join(" "),
+		None => "".to_string(),
+	};
     let query_result = sqlx::query!(
         r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
         values ($1, $2, $3, $4, $5)"#,
