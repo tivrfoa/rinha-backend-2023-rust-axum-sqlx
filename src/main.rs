@@ -22,7 +22,6 @@ use axum::{
     Router,
 };
 use sqlx::postgres::{PgPool, PgPoolOptions};
-use tokio_postgres::Row;
 
 use serde::{Deserialize, Serialize};
 
@@ -35,8 +34,8 @@ const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
 
 #[tokio::main]
 async fn main() {
-    let max_connections = std::env::var("MAX_CONNECTIONS").unwrap_or("4".into()).parse::<u16>().unwrap();
-    let acquire_timeout = std::env::var("ACQUIRE_TIMEOUT").unwrap_or("3".into()).parse::<u16>().unwrap();
+    let max_connections = std::env::var("MAX_CONNECTIONS").unwrap_or("4".into()).parse::<u32>().unwrap();
+    let acquire_timeout = std::env::var("ACQUIRE_TIMEOUT").unwrap_or("3".into()).parse::<u64>().unwrap();
 
     // set up connection pool
     let pool = PgPoolOptions::new()
