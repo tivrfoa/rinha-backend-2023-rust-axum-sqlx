@@ -1,0 +1,133 @@
+
+# 2023-09-16
+
+```log
+nginx_1  | 2023/09/17 03:51:38 [error] 36#36: *143276 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/bee229c0-191c-4b0d-9d64-8d388d1d763e HTTP/1.1", upstream: "http://api/pessoas/bee229c0-191c-4b0d-9d64-8d388d1d763e", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 32#32: *143290 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/8c87d919-0ad4-46ae-a733-4f4b50dc3d39 HTTP/1.1", upstream: "http://api/pessoas/8c87d919-0ad4-46ae-a733-4f4b50dc3d39", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 32#32: *143265 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=tVEqpUuw+r HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=tVEqpUuw+r", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 32#32: *143265 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=tVEqpUuw+r HTTP/1.1", upstream: "http://api/pessoas?t=tVEqpUuw+r", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 30#30: *143316 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/1e3be060-a960-4788-96b6-b85118dafa69 HTTP/1.1", upstream: "http://api/pessoas/1e3be060-a960-4788-96b6-b85118dafa69", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %tVEqpUuw r%
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+nginx_1  | 2023/09/17 03:51:38 [error] 36#36: *143313 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/b330569e-dc0f-4749-977e-a4f0bff5331e HTTP/1.1", upstream: "http://api/pessoas/b330569e-dc0f-4749-977e-a4f0bff5331e", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 30#30: *143379 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=imMtWdXLHozzvlaEkkdtOvHqUGMPih+jwXsCiINecUFfCJj HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=imMtWdXLHozzvlaEkkdtOvHqUGMPih+jwXsCiINecUFfCJj", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 30#30: *143379 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=imMtWdXLHozzvlaEkkdtOvHqUGMPih+jwXsCiINecUFfCJj HTTP/1.1", upstream: "http://api/pessoas?t=imMtWdXLHozzvlaEkkdtOvHqUGMPih+jwXsCiINecUFfCJj", host: "localhost:9999"
+api02_1  | Failed to search by term: %imMtWdXLHozzvlaEkkdtOvHqUGMPih jwXsCiINecUFfCJj%
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %rMaCzkJJrQbtAyArODPXLyozJbjvSUTWAZMZW%
+nginx_1  | 2023/09/17 03:51:38 [error] 30#30: *143335 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=rMaCzkJJrQbtAyArODPXLyozJbjvSUTWAZMZW HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=rMaCzkJJrQbtAyArODPXLyozJbjvSUTWAZMZW", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 30#30: *143335 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=rMaCzkJJrQbtAyArODPXLyozJbjvSUTWAZMZW HTTP/1.1", upstream: "http://api/pessoas?t=rMaCzkJJrQbtAyArODPXLyozJbjvSUTWAZMZW", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 31#31: *143298 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=m HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=m", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 31#31: *143298 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=m HTTP/1.1", upstream: "http://api/pessoas?t=m", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 31#31: *143363 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=JmiFTwXJtQUlBMMCSxFxGWfv HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=JmiFTwXJtQUlBMMCSxFxGWfv", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 31#31: *143363 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=JmiFTwXJtQUlBMMCSxFxGWfv HTTP/1.1", upstream: "http://api/pessoas?t=JmiFTwXJtQUlBMMCSxFxGWfv", host: "localhost:9999"
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %m%
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %JmiFTwXJtQUlBMMCSxFxGWfv%
+nginx_1  | 2023/09/17 03:51:38 [error] 31#31: *143391 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=hyRrL HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=hyRrL", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 31#31: *143391 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=hyRrL HTTP/1.1", upstream: "http://api/pessoas?t=hyRrL", host: "localhost:9999"
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %hyRrL%
+nginx_1  | 2023/09/17 03:51:38 [error] 30#30: *143329 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/1833374c-d751-457f-8d1e-e7b35eb3d863 HTTP/1.1", upstream: "http://api/pessoas/1833374c-d751-457f-8d1e-e7b35eb3d863", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 30#30: *143323 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/603f982f-09a7-486c-bfa9-677daa15a253 HTTP/1.1", upstream: "http://api/pessoas/603f982f-09a7-486c-bfa9-677daa15a253", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 36#36: *143324 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/e2b44053-1215-499d-828e-ad233d15a74b HTTP/1.1", upstream: "http://api/pessoas/e2b44053-1215-499d-828e-ad233d15a74b", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:38 [error] 33#33: *143093 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas/6693485f-28c3-4344-90e5-686758bb6181 HTTP/1.1", upstream: "http://api/pessoas/6693485f-28c3-4344-90e5-686758bb6181", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %ipcQHwHmlJohDKSkBZZXjxryEXv%
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %mWFQKzdEpWWgYsukjINGKPqpGEGjZdEIDcvGLBpvnPZxB%
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142460 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=ipcQHwHmlJohDKSkBZZXjxryEXv HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=ipcQHwHmlJohDKSkBZZXjxryEXv", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142460 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=ipcQHwHmlJohDKSkBZZXjxryEXv HTTP/1.1", upstream: "http://api/pessoas?t=ipcQHwHmlJohDKSkBZZXjxryEXv", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 36#36: *142483 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=mWFQKzdEpWWgYsukjINGKPqpGEGjZdEIDcvGLBpvnPZxB HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=mWFQKzdEpWWgYsukjINGKPqpGEGjZdEIDcvGLBpvnPZxB", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 36#36: *142483 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=mWFQKzdEpWWgYsukjINGKPqpGEGjZdEIDcvGLBpvnPZxB HTTP/1.1", upstream: "http://api/pessoas?t=mWFQKzdEpWWgYsukjINGKPqpGEGjZdEIDcvGLBpvnPZxB", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %UPSjTvBNybCIjBoOKSRPnhYteKDfCNyaciAT CkoKJ%
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142618 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=UPSjTvBNybCIjBoOKSRPnhYteKDfCNyaciAT+CkoKJ HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=UPSjTvBNybCIjBoOKSRPnhYteKDfCNyaciAT+CkoKJ", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142618 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=UPSjTvBNybCIjBoOKSRPnhYteKDfCNyaciAT+CkoKJ HTTP/1.1", upstream: "http://api/pessoas?t=UPSjTvBNybCIjBoOKSRPnhYteKDfCNyaciAT+CkoKJ", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %yRguCHsKcSysgrIA JpvubtUgixGWZyMYmP WMZUZNHgbMr%
+nginx_1  | 2023/09/17 03:51:40 [error] 32#32: *142552 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=yRguCHsKcSysgrIA+JpvubtUgixGWZyMYmP+WMZUZNHgbMr HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=yRguCHsKcSysgrIA+JpvubtUgixGWZyMYmP+WMZUZNHgbMr", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 32#32: *142552 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=yRguCHsKcSysgrIA+JpvubtUgixGWZyMYmP+WMZUZNHgbMr HTTP/1.1", upstream: "http://api/pessoas?t=yRguCHsKcSysgrIA+JpvubtUgixGWZyMYmP+WMZUZNHgbMr", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %XVbnsCigWvfMPvfMEvajDBzOAZNKM%
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142755 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=XVbnsCigWvfMPvfMEvajDBzOAZNKM HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=XVbnsCigWvfMPvfMEvajDBzOAZNKM", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142755 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=XVbnsCigWvfMPvfMEvajDBzOAZNKM HTTP/1.1", upstream: "http://api/pessoas?t=XVbnsCigWvfMPvfMEvajDBzOAZNKM", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142853 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=lrlZtLWdcTV HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=lrlZtLWdcTV", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 29#29: *142853 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=lrlZtLWdcTV HTTP/1.1", upstream: "http://api/pessoas?t=lrlZtLWdcTV", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %lrlZtLWdcTV%
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %ujAxGLQlTIGuwHE%
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %nDzaCxtjcKUvNEt%
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %OqZRHfFrdwnpPdCkrJcPBHXUHfsbGXKoRYWRXNz%
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %tNLagvTFkTCprw%
+nginx_1  | 2023/09/17 03:51:40 [error] 31#31: *142911 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=lCplmKYZnAuylOfeDT HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=lCplmKYZnAuylOfeDT", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 31#31: *142911 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=lCplmKYZnAuylOfeDT HTTP/1.1", upstream: "http://api/pessoas?t=lCplmKYZnAuylOfeDT", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %EYK%
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %lCplmKYZnAuylOfeDT%
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %TfqvtOgAkJycUGY%
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %StNzvQpkSWwuFVct vjbd%
+nginx_1  | 2023/09/17 03:51:40 [error] 30#30: *142942 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=TfqvtOgAkJycUGY HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=TfqvtOgAkJycUGY", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 30#30: *142942 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=TfqvtOgAkJycUGY HTTP/1.1", upstream: "http://api/pessoas?t=TfqvtOgAkJycUGY", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 30#30: *142861 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=StNzvQpkSWwuFVct+vjbd HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=StNzvQpkSWwuFVct+vjbd", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142885 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=ujAxGLQlTIGuwHE HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=ujAxGLQlTIGuwHE", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 30#30: *142861 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=StNzvQpkSWwuFVct+vjbd HTTP/1.1", upstream: "http://api/pessoas?t=StNzvQpkSWwuFVct+vjbd", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142885 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=ujAxGLQlTIGuwHE HTTP/1.1", upstream: "http://api/pessoas?t=ujAxGLQlTIGuwHE", host: "localhost:9999"
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %SzyFqIxprqiKIQcchZHuD%
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142893 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=nDzaCxtjcKUvNEt HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=nDzaCxtjcKUvNEt", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142893 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=nDzaCxtjcKUvNEt HTTP/1.1", upstream: "http://api/pessoas?t=nDzaCxtjcKUvNEt", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142878 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=OqZRHfFrdwnpPdCkrJcPBHXUHfsbGXKoRYWRXNz HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=OqZRHfFrdwnpPdCkrJcPBHXUHfsbGXKoRYWRXNz", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142878 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=OqZRHfFrdwnpPdCkrJcPBHXUHfsbGXKoRYWRXNz HTTP/1.1", upstream: "http://api/pessoas?t=OqZRHfFrdwnpPdCkrJcPBHXUHfsbGXKoRYWRXNz", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142901 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=tNLagvTFkTCprw HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=tNLagvTFkTCprw", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142901 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=tNLagvTFkTCprw HTTP/1.1", upstream: "http://api/pessoas?t=tNLagvTFkTCprw", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142921 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=EYK HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=EYK", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 33#33: *142921 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=EYK HTTP/1.1", upstream: "http://api/pessoas?t=EYK", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 30#30: *142931 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=SzyFqIxprqiKIQcchZHuD HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=SzyFqIxprqiKIQcchZHuD", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:40 [error] 30#30: *142931 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=SzyFqIxprqiKIQcchZHuD HTTP/1.1", upstream: "http://api/pessoas?t=SzyFqIxprqiKIQcchZHuD", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %TtGQzwEf%
+nginx_1  | 2023/09/17 03:51:41 [error] 33#33: *143049 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=TtGQzwEf HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=TtGQzwEf", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:41 [error] 33#33: *143049 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=TtGQzwEf HTTP/1.1", upstream: "http://api/pessoas?t=TtGQzwEf", host: "localhost:9999"
+api02_1  | [src/main.rs:124] e = PoolTimedOut
+api02_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api02_1  | Failed to search by term: %RSWJkSicHNQZAYJEiXIBfRgxOFh yCKgFXMl%
+nginx_1  | 2023/09/17 03:51:41 [error] 32#32: *143128 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=RSWJkSicHNQZAYJEiXIBfRgxOFh+yCKgFXMl HTTP/1.1", upstream: "http://127.0.0.1:8081/pessoas?t=RSWJkSicHNQZAYJEiXIBfRgxOFh+yCKgFXMl", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:41 [error] 32#32: *143128 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=RSWJkSicHNQZAYJEiXIBfRgxOFh+yCKgFXMl HTTP/1.1", upstream: "http://api/pessoas?t=RSWJkSicHNQZAYJEiXIBfRgxOFh+yCKgFXMl", host: "localhost:9999"
+api01_1  | [src/main.rs:124] e = PoolTimedOut
+api01_1  | thread 'tokio-runtime-worker' panicked at src/main.rs:125:13:
+api01_1  | Failed to search by term: %OzhETPhMubMwXPMLGgfeA%
+nginx_1  | 2023/09/17 03:51:41 [error] 34#34: *143285 upstream prematurely closed connection while reading response header from upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=OzhETPhMubMwXPMLGgfeA HTTP/1.1", upstream: "http://127.0.0.1:8080/pessoas?t=OzhETPhMubMwXPMLGgfeA", host: "localhost:9999"
+nginx_1  | 2023/09/17 03:51:41 [error] 34#34: *143285 no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "GET /pessoas?t=OzhETPhMubMwXPMLGgfeA HTTP/1.1", upstream: "http://api/pessoas?t=OzhETPhMubMwXPMLGgfeA", host: "localhost:9999"
+```

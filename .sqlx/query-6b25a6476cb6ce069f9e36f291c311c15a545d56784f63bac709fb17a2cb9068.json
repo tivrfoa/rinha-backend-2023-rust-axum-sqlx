@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ID, APELIDO, NOME, NASCIMENTO, STACK\n         FROM PESSOAS P\n         WHERE P.ID = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "apelido",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "nome",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "nascimento",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "stack",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "6b25a6476cb6ce069f9e36f291c311c15a545d56784f63bac709fb17a2cb9068"
+}
