@@ -14,7 +14,7 @@
 //! ```
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Query},
     http::StatusCode,
     Json,
     response::IntoResponse,
@@ -48,7 +48,7 @@ async fn main() {
     let app = Router::new()
         .route("/pessoas/:id", get(consultar_pessoa))
         .route("/pessoas",
-            post(criar_pessoa)
+            post(criar_pessoa).get(pesquisar_termo)
         )
         .with_state(pool);
 
@@ -74,6 +74,43 @@ async fn consultar_pessoa(
     match query_result {
         Ok(pessoa) => Ok(Json(pessoa.to_pessoa_dto())),
         Err(_) => Err(StatusCode::NOT_FOUND),
+    }
+}
+
+#[derive(Deserialize)]
+struct TermoPesquisa {
+    t: String,
+}
+
+async fn pesquisar_termo(
+    Query(termo): Query<TermoPesquisa>,
+    State(pool): State<PgPool>,
+) -> Result<Json<Vec<PessoaDTO>>, StatusCode> {
+    if termo.t.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    let mut t = String::with_capacity(termo.t.len() + 2);
+    t.push('%');
+    t.push_str(&termo.t);
+    t.push('%');
+    let query_result = sqlx::query_as!(Pessoa,
+        r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
+         FROM PESSOAS P
+         WHERE P.BUSCA_TRGM LIKE $1
+         LIMIT 50"#,
+        t.to_lowercase())
+        .fetch_all(&pool)
+        .await;
+    match query_result {
+        Ok(pessoas) => {
+            let pessoas: Vec<PessoaDTO> = pessoas.into_iter().map(|p| p.to_pessoa_dto()).collect();
+            dbg!(&pessoas);
+            Ok(Json(pessoas))
+        },
+        Err(e) => {
+            dbg!(e);
+            panic!("Failed to search by term: {}", t);
+        },
     }
 }
 
