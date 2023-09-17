@@ -193,20 +193,3 @@ pub struct PessoaDTO {
     pub stack: Option<Vec<String>>,
 }
 
-impl PessoaDTO {
-    pub fn from(row: &Row) -> PessoaDTO {
-        // COLUMNS: ID, APELIDO, NOME, NASCIMENTO, STACK
-        let stack: Option<String> = row.get(4);
-        let stack = match stack {
-            None => None,
-            Some(s) => Some(s.split(' ').map(|s| s.to_string()).collect()),
-        };
-        PessoaDTO {
-            id: row.get(0),
-            apelido: row.get(1),
-            nome: row.get(2),
-            nascimento: row.get(3),
-            stack,
-        }
-    }
-}
