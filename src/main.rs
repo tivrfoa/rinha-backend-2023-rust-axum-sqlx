@@ -54,7 +54,8 @@ async fn main() {
         .route("/contagem-pessoas", get(contagem_pessoas))
         .with_state(pool);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let port = std::env::var("HTTP_PORT").unwrap_or("8080".into()).parse::<u16>().unwrap();
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     println!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
