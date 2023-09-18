@@ -64,6 +64,23 @@ async fn consultar_pessoa(
     }
 }
 
+async fn is_apelido_existente(
+    pool: &PgPool,
+	apelido: &str,
+) -> bool {
+    let query_result = sqlx::query!(
+        r#"SELECT ID
+         FROM PESSOAS P
+         WHERE P.APELIDO = $1"#,
+        apelido)
+        .fetch_one(pool)
+        .await;
+    match query_result {
+        Ok(_) => true,
+        Err(_) => false,
+    }
+}
+
 #[axum::debug_handler]
 async fn contagem_pessoas(
     State(pool): State<PgPool>,
@@ -103,9 +120,11 @@ async fn pesquisar_termo(
         Ok(pessoas) => {
             Ok(Json(pessoas))
         },
-        Err(e) => {
-            eprintln!("{}", e);
-            // what to do here ...? return empty result for now
+        Err(_) => {
+            // eprintln!("{}", e);
+			// eg: pool timed out while waiting for an open connection
+
+            // TODO: what to do here ...? return empty result for now
             Ok(Json(vec![]))
         },
     }
@@ -120,11 +139,10 @@ fn make_busca_trgm(req: &CriarPessoaDTO, stack: &[String]) -> String {
 		1 +
 		stack.len() * 10
 	);
+	trgm.push_str(&stack.join(" "));
 	trgm.push_str(&req.apelido);
 	trgm.push(' ');
 	trgm.push_str(&req.nome);
-	trgm.push(' ');
-	trgm.push_str(&stack.join(" "));
 
 	trgm.to_lowercase()
 }
@@ -140,8 +158,11 @@ async fn criar_pessoa(
 		Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
 	};
 
-	let busca_trgm = make_busca_trgm(&req, &stack);
+	if is_apelido_existente(&pool, &req.apelido).await {
+		return Err(StatusCode::UNPROCESSABLE_ENTITY);
+	}
 
+	let busca_trgm = make_busca_trgm(&req, &stack);
     let id = Uuid::new_v4();
     let query_result = sqlx::query!(
         r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, busca_trgm)
@@ -157,9 +178,9 @@ async fn criar_pessoa(
         .await;
     match query_result {
         Ok(_) => Ok((
-            StatusCode::CREATED,
-            [("location", format!("/pessoas/{}", id))],
-        )),
+				StatusCode::CREATED,
+				[("location", format!("/pessoas/{}", id))],
+			)),
         Err(_) => Err(StatusCode::UNPROCESSABLE_ENTITY),
     }
 }
