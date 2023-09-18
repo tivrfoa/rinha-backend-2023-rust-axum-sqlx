@@ -59,7 +59,7 @@ async fn consultar_pessoa(
         .fetch_one(&pool)
         .await;
     match query_result {
-        Ok(pessoa) => Ok(Json(pessoa.to_pessoa_dto())),
+        Ok(pessoa) => Ok(Json(pessoa)),
         Err(_) => Err(StatusCode::NOT_FOUND),
     }
 }
@@ -83,7 +83,7 @@ struct TermoPesquisa {
 async fn pesquisar_termo(
     Query(termo): Query<TermoPesquisa>,
     State(pool): State<PgPool>,
-) -> Result<Json<Vec<PessoaDTO>>, StatusCode> {
+) -> Result<Json<Vec<Pessoa>>, StatusCode> {
     if termo.t.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
@@ -101,7 +101,6 @@ async fn pesquisar_termo(
         .await;
     match query_result {
         Ok(pessoas) => {
-            let pessoas: Vec<PessoaDTO> = pessoas.into_iter().map(|p| p.to_pessoa_dto()).collect();
             Ok(Json(pessoas))
         },
         Err(e) => {
@@ -111,26 +110,48 @@ async fn pesquisar_termo(
         },
     }
 }
+
+#[inline]
+fn make_busca_trgm(req: &CriarPessoaDTO, stack: &[String]) -> String {
+	let mut trgm = String::with_capacity(
+		req.apelido.len() +
+		1 +
+		req.nome.len() +
+		1 +
+		stack.len() * 10
+	);
+	trgm.push_str(&req.apelido);
+	trgm.push(' ');
+	trgm.push_str(&req.nome);
+	trgm.push(' ');
+	trgm.push_str(&stack.join(" "));
+
+	trgm.to_lowercase()
+}
+
 #[axum::debug_handler]
 async fn criar_pessoa(
     State(pool): State<PgPool>,
-    Json(req): Json<CriarPessoaDTO>,
+    Json(mut req): Json<CriarPessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
-	let stack = match validate_person_and_return_stack(&req) {
+	let stack: Vec<String> = match validate_person_and_return_stack(&mut req) {
 		Ok(s) => s,
 		Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
 	};
 
+	let busca_trgm = make_busca_trgm(&req, &stack);
+
     let id = Uuid::new_v4();
     let query_result = sqlx::query!(
-        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
-        values ($1, $2, $3, $4, $5)"#,
+        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, busca_trgm)
+        values ($1, $2, $3, $4, $5, $6)"#,
         id.to_string(),
         req.apelido,
         req.nome,
         req.nascimento,
-        stack,
+        &stack,
+		busca_trgm,
     )
         .execute(&pool)
         .await;
@@ -157,25 +178,6 @@ pub struct Pessoa {
     pub apelido: String,
     pub nome: String,
     pub nascimento: String,
-    pub stack: Option<String>,
-}
-
-impl Pessoa {
-    fn to_pessoa_dto(self) -> PessoaDTO {
-        let stack = match &self.stack {
-            Some(v) => Some(v.split_ascii_whitespace().map(|s| s.to_string()).collect()),
-            None => None,
-        };
-        PessoaDTO { id: self.id, apelido: self.apelido, nome: self.nome, nascimento: self.nascimento, stack: stack }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct PessoaDTO {
-    pub id: String,
-    pub apelido: String,
-    pub nome: String,
-    pub nascimento: String,
     pub stack: Option<Vec<String>>,
 }
 
@@ -185,30 +187,21 @@ enum ValidationError {
 
 use ValidationError::*;
 
-fn validate_person_and_return_stack(req: &CriarPessoaDTO) -> Result<String, ValidationError> {
+fn validate_person_and_return_stack(req: &mut CriarPessoaDTO) -> Result<Vec<String>, ValidationError> {
 	if req.apelido.len() > 32 || req.nome.len() > 100
 			|| !is_data_nascimento_valida(&req.nascimento) {
 		return Err(InvalidInput);
 	}
 
-	let mut stack = String::with_capacity(100);
-    let stack: String = match &req.stack {
-		Some(stacks) => {
-			if stacks[0].is_empty() || stacks[0].len() > 32 {
+	let mut stack: Vec<String> = vec![];
+	if let Some(stacks) = req.stack.take() {
+		for s in stacks {
+			if s.is_empty() || s.len() > 32 {
 				return Err(InvalidInput);
 			}
-			stack.push_str(&stacks[0]);
-			for s in stacks.into_iter().skip(1) {
-				if s.is_empty() || s.len() > 32 {
-					return Err(InvalidInput);
-				}
-				stack.push(' ');
-				stack.push_str(&s);
-			}
-			stack
+			stack.push(s);
 		}
-		None => "".to_string(),
-	};
+	}
 	Ok(stack)
 }
 
