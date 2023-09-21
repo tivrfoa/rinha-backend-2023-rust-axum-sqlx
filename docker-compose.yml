@@ -14,7 +14,7 @@ services:
       resources:
         limits:
           cpus: '0.2'
-          memory: '0.4GB'
+          memory: '0.35GB'
     network_mode: "host"
 
   api02:
@@ -37,7 +37,7 @@ services:
       resources:
         limits:
           cpus: '0.2'
-          memory: '1GB'
+          memory: '0.5GB'
 
   db: # Banco de dados
     image: postgres
@@ -54,5 +54,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: '0.9'
           memory: '1.8GB'
