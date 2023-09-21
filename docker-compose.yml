@@ -6,15 +6,15 @@ services:
     environment:
       HTTP_PORT: 8080
       DB_HOST: localhost
-      # MAX_CONNECTIONS: 30
+      MAX_CONNECTIONS: 4
       ACQUIRE_TIMEOUT: 5
     depends_on:
       - db
     deploy:
       resources:
         limits:
-          cpus: '0.15'
-          memory: '0.4GB'
+          cpus: '0.2'
+          memory: '0.35GB'
     network_mode: "host"
 
   api02:
@@ -22,7 +22,7 @@ services:
     environment:
       HTTP_PORT: 8081
       DB_HOST: localhost
-      # MAX_CONNECTIONS: 30
+      MAX_CONNECTIONS: 4
       ACQUIRE_TIMEOUT: 5
 
   nginx: # Load Balancer
@@ -37,7 +37,7 @@ services:
       resources:
         limits:
           cpus: '0.2'
-          memory: '0.4GB'
+          memory: '0.3GB'
 
   db: # Banco de dados
     image: postgres
@@ -49,10 +49,9 @@ services:
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     command: postgres -c log_min_messages=panic -c log_min_error_statement=panic
-    # command: postgres
     network_mode: host
     deploy:
       resources:
         limits:
           cpus: '1'
-          memory: '1.8GB'
+          memory: '2GB'
