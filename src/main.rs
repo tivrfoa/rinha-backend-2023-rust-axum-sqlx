@@ -161,11 +161,8 @@ pub struct Pessoa {
 
 impl Pessoa {
     fn to_pessoa_dto(self) -> PessoaDTO {
-        let stack = match &self.stack {
-            Some(v) => Some(v.split_ascii_whitespace().map(|s| s.to_string()).collect()),
-            None => None,
-        };
-        PessoaDTO { id: self.id, apelido: self.apelido, nome: self.nome, nascimento: self.nascimento, stack: stack }
+        let stack = self.stack.as_ref().map(|v| v.split_ascii_whitespace().map(|s| s.to_string()).collect());
+        PessoaDTO { id: self.id, apelido: self.apelido, nome: self.nome, nascimento: self.nascimento, stack }
     }
 }
 
