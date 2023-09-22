@@ -57,7 +57,7 @@ async fn consultar_pessoa(
     State(pool): State<PgPool>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let query_result = sqlx::query_as!(
-        Pessoa,
+        PessoaDTO,
         r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
          FROM PESSOAS P
          WHERE P.ID = $1"#,
@@ -66,7 +66,7 @@ async fn consultar_pessoa(
     .fetch_one(&pool)
     .await;
     match query_result {
-        Ok(pessoa) => Ok(Json(pessoa.to_pessoa_dto())),
+        Ok(pessoa) => Ok(Json(pessoa)),
         Err(_) => Err(StatusCode::NOT_FOUND),
     }
 }
@@ -99,7 +99,7 @@ async fn pesquisar_termo(
     t.push_str(&termo.t);
     t.push('%');
     let query_result = sqlx::query_as!(
-        Pessoa,
+        PessoaDTO,
         r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
          FROM PESSOAS P
          WHERE P.BUSCA_TRGM LIKE $1
@@ -109,14 +109,8 @@ async fn pesquisar_termo(
     .fetch_all(&pool)
     .await;
     match query_result {
-        Ok(pessoas) => {
-            let pessoas: Vec<PessoaDTO> = pessoas.into_iter().map(|p| p.to_pessoa_dto()).collect();
-            Ok(Json(pessoas))
-        }
-        Err(_) => {
-            // TODO what to do here? return empty result for now
-            Ok(Json(vec![]))
-        }
+        Ok(pessoas) => Ok(Json(pessoas)),
+        Err(_) => Ok(Json(vec![])),
     }
 }
 #[axum::debug_handler]
@@ -124,20 +118,28 @@ async fn criar_pessoa(
     State(pool): State<PgPool>,
     Json(req): Json<CriarPessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let stack = match validate_person_and_return_stack(&req) {
+    let stack_str = match validate_person_and_return_stack(&req) {
         Ok(s) => s,
         Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
     };
 
+    let mut busca_trgm = String::with_capacity(req.nome.len() + req.apelido.len() + stack_str.len() + 2);
+    busca_trgm.push_str(&stack_str);
+    busca_trgm.push(' ');
+    busca_trgm.push_str(&req.apelido);
+    busca_trgm.push(' ');
+    busca_trgm.push_str(&req.nome);
+
     let id = Uuid::new_v4();
     let query_result = sqlx::query!(
-        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
-        values ($1, $2, $3, $4, $5)"#,
+        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, busca_trgm)
+        values ($1, $2, $3, $4, $5, $6)"#,
         id.to_string(),
         req.apelido,
         req.nome,
         req.nascimento,
-        stack,
+        req.stack.as_deref(),
+        busca_trgm,
     )
     .execute(&pool)
     .await;
@@ -156,31 +158,6 @@ pub struct CriarPessoaDTO {
     pub nome: String,
     pub nascimento: String,
     pub stack: Option<Vec<String>>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Pessoa {
-    pub id: String,
-    pub apelido: String,
-    pub nome: String,
-    pub nascimento: String,
-    pub stack: Option<String>,
-}
-
-impl Pessoa {
-    fn to_pessoa_dto(self) -> PessoaDTO {
-        let stack = self
-            .stack
-            .as_ref()
-            .map(|v| v.split_ascii_whitespace().map(|s| s.to_string()).collect());
-        PessoaDTO {
-            id: self.id,
-            apelido: self.apelido,
-            nome: self.nome,
-            nascimento: self.nascimento,
-            stack,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
