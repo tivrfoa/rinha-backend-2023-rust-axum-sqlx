@@ -194,20 +194,12 @@ fn validate_person_and_return_stack(req: &CriarPessoaDTO) -> Result<String, Vali
     }
 }
 
-fn is_data_nascimento_valida(born_date: &str) -> bool {
-    if born_date.len() != 10 {
-        return false;
-    }
-    let dn_parts: Vec<&str> = born_date.split('-').collect();
-    if dn_parts.len() != 3
-        || dn_parts[0].len() != 4
-        || dn_parts[1].len() != 2
-        || dn_parts[2].len() != 2
-    {
+fn is_data_nascimento_valida(date: &str) -> bool {
+    if date.len() != 10 || &date[4..=4] != "-" || &date[7..=7] != "-" {
         return false;
     }
 
-    let year = match dn_parts[0].parse::<u16>() {
+    let year = match date[..4].parse::<u16>() {
         Ok(year) => {
             if year == 0 {
                 return false;
@@ -219,7 +211,7 @@ fn is_data_nascimento_valida(born_date: &str) -> bool {
         }
     };
 
-    let month = match dn_parts[1].parse::<u8>() {
+    let month = match date[5..7].parse::<u8>() {
         Ok(month) => {
             if month == 0 || month > 12 {
                 return false;
@@ -231,7 +223,7 @@ fn is_data_nascimento_valida(born_date: &str) -> bool {
         }
     };
 
-    match dn_parts[2].parse::<u8>() {
+    match date[8..].parse::<u8>() {
         Ok(day) => {
             if day == 0 || day > 31 {
                 return false;
