@@ -123,23 +123,16 @@ async fn criar_pessoa(
         Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
     };
 
-    let mut busca_trgm = String::with_capacity(req.nome.len() + req.apelido.len() + stack_str.len() + 2);
-    busca_trgm.push_str(&req.apelido);
-    busca_trgm.push(' ');
-    busca_trgm.push_str(&req.nome);
-    busca_trgm.push(' ');
-    busca_trgm.push_str(&stack_str);
-
     let id = Uuid::new_v4();
     let query_result = sqlx::query!(
-        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, busca_trgm)
+        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, stack_str)
         values ($1, $2, $3, $4, $5, $6)"#,
         id.to_string(),
         req.apelido,
         req.nome,
         req.nascimento,
         req.stack.as_deref(),
-        busca_trgm,
+        stack_str,
     )
     .execute(&pool)
     .await;
