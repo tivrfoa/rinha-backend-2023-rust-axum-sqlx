@@ -1,7 +1,7 @@
 version: '3.5'
 services:
   api01: &api
-    image: axumsqlx:goodresult2
+    image: axumsqlx:goodresult3
     # build: .
     environment:
       HTTP_PORT: 8080
