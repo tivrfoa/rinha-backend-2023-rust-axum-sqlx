@@ -191,25 +191,17 @@ fn validate_person_and_return_stack(req: &CriarPessoaDTO) -> Result<String, Vali
 		return Err(InvalidInput);
 	}
 
-	let mut stack = String::with_capacity(100);
-    let stack: String = match &req.stack {
+    match &req.stack {
 		Some(stacks) => {
-			if stacks[0].is_empty() || stacks[0].len() > 32 {
-				return Err(InvalidInput);
-			}
-			stack.push_str(&stacks[0]);
-			for s in stacks.into_iter().skip(1) {
-				if s.is_empty() || s.len() > 32 {
-					return Err(InvalidInput);
-				}
-				stack.push(' ');
-				stack.push_str(&s);
-			}
-			stack
+            for s in stacks {
+    			if s.is_empty() || s.len() > 32 {
+    				return Err(InvalidInput);
+    			}
+            }
+			Ok(stacks.join(" "))
 		}
-		None => "".to_string(),
-	};
-	Ok(stack)
+		None => Ok("".to_string()),
+	}
 }
 
 fn is_data_nascimento_valida(born_date: &str) -> bool {
