@@ -124,11 +124,11 @@ async fn criar_pessoa(
     };
 
     let mut busca_trgm = String::with_capacity(req.nome.len() + req.apelido.len() + stack_str.len() + 2);
-    busca_trgm.push_str(&stack_str);
-    busca_trgm.push(' ');
     busca_trgm.push_str(&req.apelido);
     busca_trgm.push(' ');
     busca_trgm.push_str(&req.nome);
+    busca_trgm.push(' ');
+    busca_trgm.push_str(&stack_str);
 
     let id = Uuid::new_v4();
     let query_result = sqlx::query!(
