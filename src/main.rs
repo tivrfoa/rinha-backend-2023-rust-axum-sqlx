@@ -104,9 +104,8 @@ async fn pesquisar_termo(
             let pessoas: Vec<PessoaDTO> = pessoas.into_iter().map(|p| p.to_pessoa_dto()).collect();
             Ok(Json(pessoas))
         },
-        Err(e) => {
-            eprintln!("{}", e);
-            // what to do here ...? return empty result for now
+        Err(_) => {
+            // TODO what to do here? return empty result for now
             Ok(Json(vec![]))
         },
     }
