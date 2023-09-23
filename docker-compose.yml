@@ -40,15 +40,16 @@ services:
           memory: '0.4GB'
 
   db: # Banco de dados
-    image: postgres
+    image: postgres:16.0-bullseye
     hostname: db
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: 1234
       POSTGRES_DB: rinhadb
     volumes:
+      - ./postgresql.conf:/etc/postgresql.conf
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: postgres -c log_min_messages=panic -c log_min_error_statement=panic
+    command: postgres -c config_file=/etc/postgresql.conf
     network_mode: host
     deploy:
       resources:
