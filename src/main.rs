@@ -179,7 +179,7 @@ async fn criar_pessoa(
     };
 
     let id = Uuid::new_v4();
-    let pessoa = PessoaDTO::from_criar_pessoa_dto(id.to_string(), &req);
+    let pessoa = PessoaDTO::from_CriarPessoaDTO(id.to_string(), &req);
     shared_state.cache.lock().unwrap().insert(pessoa);
     let query_result = sqlx::query!(
         r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, stack_str)
@@ -220,7 +220,8 @@ pub struct PessoaDTO {
 }
 
 impl PessoaDTO {
-    fn from_criar_pessoa_dto(id: String, pessoa: &CriarPessoaDTO) -> Self {
+    #[allow(non_snake_case)]
+    fn from_CriarPessoaDTO(id: String, pessoa: &CriarPessoaDTO) -> Self {
         Self {
             id,
             apelido: pessoa.apelido.clone(),
@@ -257,7 +258,7 @@ fn validate_person_and_return_stack(req: &CriarPessoaDTO) -> Result<String, Vali
 }
 
 fn is_data_nascimento_valida(date: &str) -> bool {
-    if date.len() != 10 || &date[4..=4] != "-" || &date[7..=7] != "-" {
+    if date.len() != 10 || &date[4..=4] != "-" || &date[7..=7] != "-" || &date[5..=6] > "12" {
         return false;
     }
 

@@ -1,7 +1,7 @@
 version: '3.5'
 services:
   api01: &api
-    image: axumsqlx:cache1
+    image: axumsqlx:cache2
     # build: .
     environment:
       HTTP_PORT: 8080
@@ -13,7 +13,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.15'
+          cpus: '0.5'
           memory: '0.4GB'
     network_mode: "host"
 
@@ -36,8 +36,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-          memory: '0.4GB'
+          cpus: '0.5'
+          memory: '1GB'
 
   db: # Banco de dados
     image: postgres:16.0-bullseye
@@ -54,5 +54,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: '1.8GB'
+          cpus: '2'
+          memory: '3GB'
