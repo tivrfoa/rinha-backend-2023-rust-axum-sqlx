@@ -14,7 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.15'
+          cpus: '1'
           memory: '0.35GB'
     network_mode: "host"
 

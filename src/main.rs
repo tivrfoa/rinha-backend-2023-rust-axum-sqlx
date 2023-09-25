@@ -22,9 +22,16 @@ struct AppState {
     http_client: reqwest::Client,
 }
 
+#[derive(Debug)]
+struct CacheTermoBusca {
+	termo: String,
+	id: String,
+}
+
 struct Cache {
     pessoa_map: HashMap<String, PessoaDTO>,
     apelidos: HashSet<String>,
+	termos_busca: Vec<CacheTermoBusca>,
 }
 
 impl Cache {
@@ -33,6 +40,13 @@ impl Cache {
     }
 
     fn insert(&mut self, pessoa: PessoaDTO) -> bool {
+		if let Some(ref stack) = pessoa.stack {
+			let stack_str = stack.join(" ").to_lowercase();
+			self.termos_busca.push(CacheTermoBusca {
+				termo: stack_str,
+				id: pessoa.id.clone(),
+			});
+		}
         self.apelidos.insert(pessoa.apelido.clone());
         self.pessoa_map.insert(pessoa.id.clone(), pessoa);
         false
@@ -41,6 +55,21 @@ impl Cache {
     fn apelido_exists(&self, apelido: &str) -> bool {
         self.apelidos.contains(apelido)
     }
+
+	fn pesquisar_termo(&self, termo: &str) -> Vec<PessoaDTO> {
+		// println!("pesquisando {termo}");
+		// dbg!(&self.termos_busca);
+		let mut pessoas: Vec<PessoaDTO> = Vec::with_capacity(50);
+		for tb in &self.termos_busca {
+			if tb.termo.find(termo).is_some() {
+				pessoas.push(self.pessoa_map.get(&tb.id).unwrap().clone());
+				if pessoas.len() == 50 {
+					break;
+				}
+			}
+		}
+		pessoas
+	}
 }
 
 static mut PORT: u16 = 8080;
@@ -69,6 +98,7 @@ async fn main() {
     let cache: Mutex<Cache> = Mutex::new(Cache {
         pessoa_map: HashMap::new(),
         apelidos: HashSet::new(),
+		termos_busca: Vec::with_capacity(46576),
     });
 
     let app_state = Arc::new(AppState {
@@ -151,28 +181,7 @@ async fn pesquisar_termo(
     if termo.t.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
-    let mut t = String::with_capacity(termo.t.len() + 2);
-    t.push('%');
-    t.push_str(&termo.t);
-    t.push('%');
-
-    let query_result = sqlx::query_as!(
-        PessoaDTO,
-        r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
-         FROM PESSOAS P
-         WHERE P.BUSCA_TRGM LIKE $1
-         LIMIT 50"#,
-        t.to_lowercase()
-    )
-    .fetch_all(&shared_state.pool)
-    .await;
-    match query_result {
-        Ok(pessoas) => Ok(Json(pessoas)),
-        Err(e) => {
-			println!("ERROR pesquisar_termo: {:?}", e);
-			Ok(Json(vec![]))
-		}
-    }
+	Ok(Json(shared_state.cache.lock().unwrap().pesquisar_termo(&termo.t.to_lowercase())))
 }
 
 async fn criar_pessoa(
