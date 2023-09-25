@@ -11,7 +11,38 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use uuid::Uuid;
 
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
+
 const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
+
+struct AppState {
+    pool: PgPool,
+    cache: Mutex<Cache>,
+}
+
+struct Cache {
+    pessoa_map: HashMap<String, PessoaDTO>,
+    apelidos: HashSet<String>,
+}
+
+impl Cache {
+    fn get_pessoa(&self, id: &str) -> Option<PessoaDTO> {
+        self.pessoa_map.get(id).map(|p| p.clone())
+    }
+
+    fn insert(&mut self, pessoa: PessoaDTO) -> bool {
+        self.apelidos.insert(pessoa.apelido.clone());
+        self.pessoa_map.insert(pessoa.id.clone(), pessoa);
+        false
+    }
+
+    fn apelido_exists(&self, apelido: &str) -> bool {
+        self.apelidos.contains(apelido)
+    }
+}
+
+static mut PORT: u16 = 8080;
 
 #[tokio::main]
 async fn main() {
@@ -33,18 +64,26 @@ async fn main() {
         .await
         .expect("can't connect to database");
 
+    let cache: Mutex<Cache> = Mutex::new(Cache {
+        pessoa_map: HashMap::new(),
+        apelidos: HashSet::new(),
+    });
+
+    let app_state = Arc::new(AppState { pool, cache });
+
     // build our application with some routes
     let app = Router::new()
         .route("/pessoas/:id", get(consultar_pessoa))
         .route("/pessoas", post(criar_pessoa).get(pesquisar_termo))
         .route("/contagem-pessoas", get(contagem_pessoas))
-        .with_state(pool);
+        .with_state(app_state);
 
-    let port = std::env::var("HTTP_PORT")
-        .unwrap_or("8080".into())
-        .parse::<u16>()
-        .unwrap();
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    if let Ok(port) = std::env::var("HTTP_PORT") {
+        unsafe {
+            PORT = port.parse().unwrap();
+        }
+    }
+    let addr = SocketAddr::from(([127, 0, 0, 1], unsafe { PORT }));
     println!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -54,8 +93,12 @@ async fn main() {
 
 async fn consultar_pessoa(
     Path(id): Path<String>,
-    State(pool): State<PgPool>,
+    State(shared_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    if let Some(pessoa) = shared_state.cache.lock().unwrap().get_pessoa(&id) {
+        // println!("Found pessoa in cache");
+        return Ok(Json(pessoa));
+    }
     let query_result = sqlx::query_as!(
         PessoaDTO,
         r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
@@ -63,7 +106,7 @@ async fn consultar_pessoa(
          WHERE P.ID = $1"#,
         id
     )
-    .fetch_one(&pool)
+    .fetch_one(&shared_state.pool)
     .await;
     match query_result {
         Ok(pessoa) => Ok(Json(pessoa)),
@@ -72,9 +115,10 @@ async fn consultar_pessoa(
 }
 
 #[axum::debug_handler]
-async fn contagem_pessoas(State(pool): State<PgPool>) -> String {
+async fn contagem_pessoas(State(shared_state): State<Arc<AppState>>) -> String {
+    // dbg!(&shared_state.cache.lock().unwrap().pessoa_map);
     sqlx::query!("SELECT COUNT(*) FROM PESSOAS")
-        .fetch_one(&pool)
+        .fetch_one(&shared_state.pool)
         .await
         .unwrap()
         .count
@@ -89,7 +133,7 @@ struct TermoPesquisa {
 
 async fn pesquisar_termo(
     Query(termo): Query<TermoPesquisa>,
-    State(pool): State<PgPool>,
+    State(shared_state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<PessoaDTO>>, StatusCode> {
     if termo.t.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
@@ -98,6 +142,7 @@ async fn pesquisar_termo(
     t.push('%');
     t.push_str(&termo.t);
     t.push('%');
+
     let query_result = sqlx::query_as!(
         PessoaDTO,
         r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
@@ -106,7 +151,7 @@ async fn pesquisar_termo(
          LIMIT 50"#,
         t.to_lowercase()
     )
-    .fetch_all(&pool)
+    .fetch_all(&shared_state.pool)
     .await;
     match query_result {
         Ok(pessoas) => Ok(Json(pessoas)),
@@ -115,15 +160,27 @@ async fn pesquisar_termo(
 }
 #[axum::debug_handler]
 async fn criar_pessoa(
-    State(pool): State<PgPool>,
+    State(shared_state): State<Arc<AppState>>,
     Json(req): Json<CriarPessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    if shared_state
+        .cache
+        .lock()
+        .unwrap()
+        .apelido_exists(&req.apelido)
+    {
+        // println!("apelido already exists!");
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
     let stack_str = match validate_person_and_return_stack(&req) {
         Ok(s) => s,
         Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
     };
 
     let id = Uuid::new_v4();
+    let pessoa = PessoaDTO::from_criar_pessoa_dto(id.to_string(), &req);
+    shared_state.cache.lock().unwrap().insert(pessoa);
     let query_result = sqlx::query!(
         r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, stack_str)
         values ($1, $2, $3, $4, $5, $6)"#,
@@ -134,7 +191,7 @@ async fn criar_pessoa(
         req.stack.as_deref(),
         stack_str,
     )
-    .execute(&pool)
+    .execute(&shared_state.pool)
     .await;
     match query_result {
         Ok(_) => Ok((
@@ -153,13 +210,25 @@ pub struct CriarPessoaDTO {
     pub stack: Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PessoaDTO {
     pub id: String,
     pub apelido: String,
     pub nome: String,
     pub nascimento: String,
     pub stack: Option<Vec<String>>,
+}
+
+impl PessoaDTO {
+    fn from_criar_pessoa_dto(id: String, pessoa: &CriarPessoaDTO) -> Self {
+        Self {
+            id,
+            apelido: pessoa.apelido.clone(),
+            nome: pessoa.nome.clone(),
+            nascimento: pessoa.nascimento.clone(),
+            stack: pessoa.stack.clone(),
+        }
+    }
 }
 
 enum ValidationError {
