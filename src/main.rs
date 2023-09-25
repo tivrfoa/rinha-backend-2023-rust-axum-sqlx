@@ -19,6 +19,7 @@ const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
 struct AppState {
     pool: PgPool,
     cache: Mutex<Cache>,
+    http_client: reqwest::Client,
 }
 
 struct Cache {
@@ -43,6 +44,7 @@ impl Cache {
 }
 
 static mut PORT: u16 = 8080;
+static mut BROTHER_URL: Option<String> = None; // xD
 
 #[tokio::main]
 async fn main() {
@@ -69,14 +71,25 @@ async fn main() {
         apelidos: HashSet::new(),
     });
 
-    let app_state = Arc::new(AppState { pool, cache });
+    let app_state = Arc::new(AppState {
+        pool,
+        cache,
+        http_client: reqwest::Client::new(),
+    });
 
     // build our application with some routes
     let app = Router::new()
         .route("/pessoas/:id", get(consultar_pessoa))
         .route("/pessoas", post(criar_pessoa).get(pesquisar_termo))
         .route("/contagem-pessoas", get(contagem_pessoas))
+        .route("/pessoas/cache", post(cache_pessoa))
         .with_state(app_state);
+
+    if let Ok(brother_port) = std::env::var("BROTHER_PORT") {
+        unsafe {
+            BROTHER_URL = Some(format!("http://localhost:{brother_port}/pessoas/cache"));
+        }
+    }
 
     if let Ok(port) = std::env::var("HTTP_PORT") {
         unsafe {
@@ -155,10 +168,13 @@ async fn pesquisar_termo(
     .await;
     match query_result {
         Ok(pessoas) => Ok(Json(pessoas)),
-        Err(_) => Ok(Json(vec![])),
+        Err(e) => {
+			println!("ERROR pesquisar_termo: {:?}", e);
+			Ok(Json(vec![]))
+		}
     }
 }
-#[axum::debug_handler]
+
 async fn criar_pessoa(
     State(shared_state): State<Arc<AppState>>,
     Json(req): Json<CriarPessoaDTO>,
@@ -179,8 +195,6 @@ async fn criar_pessoa(
     };
 
     let id = Uuid::new_v4();
-    let pessoa = PessoaDTO::from_CriarPessoaDTO(id.to_string(), &req);
-    shared_state.cache.lock().unwrap().insert(pessoa);
     let query_result = sqlx::query!(
         r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, stack_str)
         values ($1, $2, $3, $4, $5, $6)"#,
@@ -194,12 +208,44 @@ async fn criar_pessoa(
     .execute(&shared_state.pool)
     .await;
     match query_result {
-        Ok(_) => Ok((
-            StatusCode::CREATED,
-            [("location", format!("/pessoas/{}", id))],
-        )),
-        Err(_) => Err(StatusCode::UNPROCESSABLE_ENTITY),
+        Ok(_) => {
+			let pessoa = PessoaDTO::from_CriarPessoaDTO(id.to_string(), &req);
+            replicate_cache(&shared_state.http_client, &pessoa).await;
+			shared_state.cache.lock().unwrap().insert(pessoa.clone());
+            Ok((
+                StatusCode::CREATED,
+                [("location", format!("/pessoas/{}", id))],
+            ))
+        }
+        Err(e) => {
+			println!("ERROR criar_pessoa: {:?}", e);
+			Err(StatusCode::UNPROCESSABLE_ENTITY)
+		}
     }
+}
+
+#[axum::debug_handler]
+async fn cache_pessoa(
+    State(shared_state): State<Arc<AppState>>,
+    Json(req): Json<PessoaDTO>,
+) -> Result<impl IntoResponse, StatusCode> {
+    shared_state.cache.lock().unwrap().insert(req);
+    Ok(())
+}
+
+async fn replicate_cache(http_client: &reqwest::Client, pessoa: &PessoaDTO) {
+	unsafe {
+		if let Some(url) = &BROTHER_URL {
+			if let Err(e) = http_client
+				.post(url)
+				.json(pessoa)
+				.send()
+				.await
+			{
+				println!("Error replicating cache: {:?}", e);
+			}
+		}
+	}
 }
 
 #[derive(Debug, Deserialize)]

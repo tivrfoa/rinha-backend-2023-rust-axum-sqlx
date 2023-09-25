@@ -1,28 +1,30 @@
 version: '3.5'
 services:
   api01: &api
-    image: axumsqlx:cache2
+    image: axumsqlx:cachebrother
     # build: .
     environment:
       HTTP_PORT: 8080
+      BROTHER_PORT: 8081
       DB_HOST: localhost
-      MAX_CONNECTIONS: 30
+      MAX_CONNECTIONS: 10
       ACQUIRE_TIMEOUT: 5
     depends_on:
       - db
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '0.4GB'
+          cpus: '0.15'
+          memory: '0.35GB'
     network_mode: "host"
 
   api02:
     <<: *api
     environment:
       HTTP_PORT: 8081
+      BROTHER_PORT: 8080
       DB_HOST: localhost
-      MAX_CONNECTIONS: 30
+      MAX_CONNECTIONS: 10
       ACQUIRE_TIMEOUT: 5
 
   nginx: # Load Balancer
@@ -36,8 +38,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: '1GB'
+          cpus: '0.2'
+          memory: '0.4GB'
 
   db: # Banco de dados
     image: postgres:16.0-bullseye
@@ -54,5 +56,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: '3GB'
+          cpus: '1'
+          memory: '1.9GB'
