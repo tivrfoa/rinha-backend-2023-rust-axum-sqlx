@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use memchr::memmem;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::net::SocketAddr;
@@ -24,7 +25,7 @@ struct AppState {
 
 #[derive(Debug)]
 struct CacheTermoBusca {
-	termo: String,
+	termo: Vec<u8>,
 	id: String,
 }
 
@@ -40,13 +41,19 @@ impl Cache {
     }
 
     fn insert(&mut self, pessoa: PessoaDTO) -> bool {
+		let mut termo = String::with_capacity(pessoa.apelido.len() +
+			pessoa.nome.len() + 60);
+		termo.push_str(&pessoa.apelido);
+		termo.push(' ');
+		termo.push_str(&pessoa.nome);
 		if let Some(ref stack) = pessoa.stack {
-			let stack_str = stack.join(" ").to_lowercase();
-			self.termos_busca.push(CacheTermoBusca {
-				termo: stack_str,
-				id: pessoa.id.clone(),
-			});
+			termo.push(' ');
+			termo.push_str(&stack.join(" "));
 		}
+		self.termos_busca.push(CacheTermoBusca {
+			termo: termo.to_lowercase().into_bytes(),
+			id: pessoa.id.clone(),
+		});
         self.apelidos.insert(pessoa.apelido.clone());
         self.pessoa_map.insert(pessoa.id.clone(), pessoa);
         false
@@ -61,7 +68,7 @@ impl Cache {
 		// dbg!(&self.termos_busca);
 		let mut pessoas: Vec<PessoaDTO> = Vec::with_capacity(50);
 		for tb in &self.termos_busca {
-			if tb.termo.find(termo).is_some() {
+			if memmem::find(&tb.termo, termo.as_bytes()).is_some() {
 				pessoas.push(self.pessoa_map.get(&tb.id).unwrap().clone());
 				if pessoas.len() == 50 {
 					break;
@@ -139,22 +146,9 @@ async fn consultar_pessoa(
     State(shared_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     if let Some(pessoa) = shared_state.cache.lock().unwrap().get_pessoa(&id) {
-        // println!("Found pessoa in cache");
         return Ok(Json(pessoa));
     }
-    let query_result = sqlx::query_as!(
-        PessoaDTO,
-        r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
-         FROM PESSOAS P
-         WHERE P.ID = $1"#,
-        id
-    )
-    .fetch_one(&shared_state.pool)
-    .await;
-    match query_result {
-        Ok(pessoa) => Ok(Json(pessoa)),
-        Err(_) => Err(StatusCode::NOT_FOUND),
-    }
+    Err(StatusCode::NOT_FOUND)
 }
 
 #[axum::debug_handler]
@@ -198,21 +192,19 @@ async fn criar_pessoa(
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
-    let stack_str = match validate_person_and_return_stack(&req) {
-        Ok(s) => s,
-        Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
-    };
+    if !is_request_valid(&req) {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
 
     let id = Uuid::new_v4();
     let query_result = sqlx::query!(
-        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, stack_str)
-        values ($1, $2, $3, $4, $5, $6)"#,
+        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
+        values ($1, $2, $3, $4, $5)"#,
         id.to_string(),
         req.apelido,
         req.nome,
         req.nascimento,
-        req.stack.as_deref(),
-        stack_str,
+        req.stack.as_deref()
     )
     .execute(&shared_state.pool)
     .await;
@@ -276,6 +268,7 @@ pub struct PessoaDTO {
 
 impl PessoaDTO {
     #[allow(non_snake_case)]
+    #[inline(always)]
     fn from_CriarPessoaDTO(id: String, pessoa: &CriarPessoaDTO) -> Self {
         Self {
             id,
@@ -287,29 +280,14 @@ impl PessoaDTO {
     }
 }
 
-enum ValidationError {
-    InvalidInput,
-}
-
-use ValidationError::*;
-
-fn validate_person_and_return_stack(req: &CriarPessoaDTO) -> Result<String, ValidationError> {
+#[inline(always)]
+fn is_request_valid(req: &CriarPessoaDTO) -> bool {
     if req.apelido.len() > 32 || req.nome.len() > 100 || !is_data_nascimento_valida(&req.nascimento)
     {
-        return Err(InvalidInput);
+        return false;
     }
 
-    match &req.stack {
-        Some(stacks) => {
-            for s in stacks {
-                if s.is_empty() || s.len() > 32 {
-                    return Err(InvalidInput);
-                }
-            }
-            Ok(stacks.join(" "))
-        }
-        None => Ok("".to_string()),
-    }
+	true
 }
 
 fn is_data_nascimento_valida(date: &str) -> bool {

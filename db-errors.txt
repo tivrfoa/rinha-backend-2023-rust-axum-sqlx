@@ -1,0 +1,4 @@
+db_1     | 2023-09-25 11:33:02.469 GMT [2747] LOG:  failed to send SSL negotiation response: Broken pipe
+
+
+db_1     | 2023-09-25 11:39:47.564 GMT [45] LOG:  could not receive data from client: Connection reset by peer
