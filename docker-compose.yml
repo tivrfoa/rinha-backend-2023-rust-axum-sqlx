@@ -1,7 +1,7 @@
 version: '3.5'
 services:
   api01: &api
-    image: axumsqlx:cachebrother
+    image: axumsqlx:atomicsplittermosearch
     # build: .
     environment:
       HTTP_PORT: 8080
@@ -14,7 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: '0.3'
           memory: '0.35GB'
     network_mode: "host"
 
@@ -56,5 +56,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: '1'
           memory: '1.9GB'

@@ -5,17 +5,20 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use memchr::memmem;
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use sqlx::postgres::{PgPool, PgPoolOptions, Postgres};
+use sqlx::Pool;
 use std::net::SocketAddr;
 use std::time::Duration;
 use uuid::Uuid;
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
+
+static TERM_SEARCH_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 struct AppState {
     pool: PgPool,
@@ -25,14 +28,14 @@ struct AppState {
 
 #[derive(Debug)]
 struct CacheTermoBusca {
-	termo: Vec<u8>,
-	id: String,
+    termo: String,
+    pessoa: PessoaDTO,
 }
 
 struct Cache {
     pessoa_map: HashMap<String, PessoaDTO>,
     apelidos: HashSet<String>,
-	termos_busca: Vec<CacheTermoBusca>,
+    termos_busca: Vec<CacheTermoBusca>,
 }
 
 impl Cache {
@@ -40,20 +43,11 @@ impl Cache {
         self.pessoa_map.get(id).map(|p| p.clone())
     }
 
-    fn insert(&mut self, pessoa: PessoaDTO) -> bool {
-		let mut termo = String::with_capacity(pessoa.apelido.len() +
-			pessoa.nome.len() + 60);
-		termo.push_str(&pessoa.apelido);
-		termo.push(' ');
-		termo.push_str(&pessoa.nome);
-		if let Some(ref stack) = pessoa.stack {
-			termo.push(' ');
-			termo.push_str(&stack.join(" "));
-		}
-		self.termos_busca.push(CacheTermoBusca {
-			termo: termo.to_lowercase().into_bytes(),
-			id: pessoa.id.clone(),
-		});
+    fn insert(&mut self, pessoa: PessoaDTO, busca_trgm: String) -> bool {
+        self.termos_busca.push(CacheTermoBusca {
+            termo: busca_trgm,
+            pessoa: pessoa.clone(),
+        });
         self.apelidos.insert(pessoa.apelido.clone());
         self.pessoa_map.insert(pessoa.id.clone(), pessoa);
         false
@@ -63,20 +57,20 @@ impl Cache {
         self.apelidos.contains(apelido)
     }
 
-	fn pesquisar_termo(&self, termo: &str) -> Vec<PessoaDTO> {
-		// println!("pesquisando {termo}");
-		// dbg!(&self.termos_busca);
-		let mut pessoas: Vec<PessoaDTO> = Vec::with_capacity(50);
-		for tb in &self.termos_busca {
-			if memmem::find(&tb.termo, termo.as_bytes()).is_some() {
-				pessoas.push(self.pessoa_map.get(&tb.id).unwrap().clone());
-				if pessoas.len() == 50 {
-					break;
-				}
-			}
-		}
-		pessoas
-	}
+    fn pesquisar_termo(&self, termo: &str) -> Vec<PessoaDTO> {
+        // println!("pesquisando {termo}");
+        // dbg!(&self.termos_busca);
+        let mut pessoas: Vec<PessoaDTO> = Vec::with_capacity(50);
+        for tb in &self.termos_busca {
+            if tb.termo.contains(termo) {
+                pessoas.push(tb.pessoa.clone());
+                if pessoas.len() == 50 {
+                    break;
+                }
+            }
+        }
+        pessoas
+    }
 }
 
 static mut PORT: u16 = 8080;
@@ -105,7 +99,7 @@ async fn main() {
     let cache: Mutex<Cache> = Mutex::new(Cache {
         pessoa_map: HashMap::new(),
         apelidos: HashSet::new(),
-		termos_busca: Vec::with_capacity(46576),
+        termos_busca: Vec::with_capacity(46576),
     });
 
     let app_state = Arc::new(AppState {
@@ -175,7 +169,47 @@ async fn pesquisar_termo(
     if termo.t.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
-	Ok(Json(shared_state.cache.lock().unwrap().pesquisar_termo(&termo.t.to_lowercase())))
+
+    let qt = TERM_SEARCH_COUNT.fetch_add(1, Ordering::SeqCst);
+    if qt % 5 == 0 {
+        Ok(Json(
+            shared_state
+                .cache
+                .lock()
+                .unwrap()
+                .pesquisar_termo(&termo.t.to_lowercase()),
+        ))
+    } else {
+        query_term_on_db(&termo.t, &shared_state.pool).await
+    }
+}
+
+async fn query_term_on_db(
+    termo: &str,
+    pool: &Pool<Postgres>,
+) -> Result<Json<Vec<PessoaDTO>>, StatusCode> {
+    let mut t = String::with_capacity(termo.len() + 2);
+    t.push('%');
+    t.push_str(termo);
+    t.push('%');
+
+    let query_result = sqlx::query_as!(
+        PessoaDTO,
+        r#"SELECT ID, APELIDO, NOME, NASCIMENTO, STACK
+         FROM PESSOAS P
+         WHERE P.BUSCA_TRGM LIKE $1
+         LIMIT 50"#,
+        t.to_lowercase()
+    )
+    .fetch_all(pool)
+    .await;
+    match query_result {
+        Ok(pessoas) => Ok(Json(pessoas)),
+        Err(e) => {
+            println!("ERROR pesquisar_termo: {:?}", e);
+            Ok(Json(vec![]))
+        }
+    }
 }
 
 async fn criar_pessoa(
@@ -197,31 +231,37 @@ async fn criar_pessoa(
     }
 
     let id = Uuid::new_v4();
+    let busca_trgm = create_busca_trgm(&req.nome, &req.apelido, &req.stack);
     let query_result = sqlx::query!(
-        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack)
-        values ($1, $2, $3, $4, $5)"#,
+        r#"INSERT INTO pessoas (id, apelido, nome, nascimento, stack, busca_trgm)
+        values ($1, $2, $3, $4, $5, $6)"#,
         id.to_string(),
         req.apelido,
         req.nome,
         req.nascimento,
-        req.stack.as_deref()
+        req.stack.as_deref(),
+        busca_trgm.clone(),
     )
     .execute(&shared_state.pool)
     .await;
     match query_result {
         Ok(_) => {
-			let pessoa = PessoaDTO::from_CriarPessoaDTO(id.to_string(), &req);
+            let pessoa = PessoaDTO::from_CriarPessoaDTO(id.to_string(), &req);
             replicate_cache(&shared_state.http_client, &pessoa).await;
-			shared_state.cache.lock().unwrap().insert(pessoa.clone());
+            shared_state
+                .cache
+                .lock()
+                .unwrap()
+                .insert(pessoa, busca_trgm);
             Ok((
                 StatusCode::CREATED,
                 [("location", format!("/pessoas/{}", id))],
             ))
         }
         Err(e) => {
-			println!("ERROR criar_pessoa: {:?}", e);
-			Err(StatusCode::UNPROCESSABLE_ENTITY)
-		}
+            println!("ERROR criar_pessoa: {:?}", e);
+            Err(StatusCode::UNPROCESSABLE_ENTITY)
+        }
     }
 }
 
@@ -230,23 +270,19 @@ async fn cache_pessoa(
     State(shared_state): State<Arc<AppState>>,
     Json(req): Json<PessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    shared_state.cache.lock().unwrap().insert(req);
+    let busca_trgm = create_busca_trgm(&req.nome, &req.apelido, &req.stack);
+    shared_state.cache.lock().unwrap().insert(req, busca_trgm);
     Ok(())
 }
 
 async fn replicate_cache(http_client: &reqwest::Client, pessoa: &PessoaDTO) {
-	unsafe {
-		if let Some(url) = &BROTHER_URL {
-			if let Err(e) = http_client
-				.post(url)
-				.json(pessoa)
-				.send()
-				.await
-			{
-				println!("Error replicating cache: {:?}", e);
-			}
-		}
-	}
+    unsafe {
+        if let Some(url) = &BROTHER_URL {
+            if let Err(e) = http_client.post(url).json(pessoa).send().await {
+                println!("Error replicating cache: {:?}", e);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -280,6 +316,18 @@ impl PessoaDTO {
     }
 }
 
+fn create_busca_trgm(nome: &str, apelido: &str, stack: &Option<Vec<String>>) -> String {
+    let mut termo = String::with_capacity(apelido.len() + nome.len() + 100);
+    termo.push_str(&apelido);
+    termo.push(' ');
+    termo.push_str(&nome);
+    if let Some(ref stack) = stack {
+        termo.push(' ');
+        termo.push_str(&stack.join(" "));
+    }
+    termo.to_lowercase()
+}
+
 #[inline(always)]
 fn is_request_valid(req: &CriarPessoaDTO) -> bool {
     if req.apelido.len() > 32 || req.nome.len() > 100 || !is_data_nascimento_valida(&req.nascimento)
@@ -287,11 +335,19 @@ fn is_request_valid(req: &CriarPessoaDTO) -> bool {
         return false;
     }
 
-	true
+    if let Some(ref stack) = req.stack {
+        for s in stack {
+            if s.is_empty() || s.len() > 32 {
+                return false;
+            }
+        }
+    }
+
+    true
 }
 
 fn is_data_nascimento_valida(date: &str) -> bool {
-    if date.len() != 10 || &date[4..=4] != "-" || &date[7..=7] != "-" || &date[5..=6] > "12" {
+    if date.len() != 10 || &date[5..=6] > "12" {
         return false;
     }
 
@@ -309,7 +365,7 @@ fn is_data_nascimento_valida(date: &str) -> bool {
 
     let month = match date[5..7].parse::<u8>() {
         Ok(month) => {
-            if month == 0 || month > 12 {
+            if month == 0 {
                 return false;
             }
             month
