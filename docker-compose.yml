@@ -7,14 +7,14 @@ services:
       HTTP_PORT: 8080
       DB_HOST: localhost
       MAX_CONNECTIONS: 30
-      ACQUIRE_TIMEOUT: 5
+      ACQUIRE_TIMEOUT: 10
     depends_on:
       - db
     deploy:
       resources:
         limits:
           cpus: '0.15'
-          memory: '0.4GB'
+          memory: '0.3GB'
     network_mode: "host"
 
   api02:
@@ -23,7 +23,7 @@ services:
       HTTP_PORT: 8081
       DB_HOST: localhost
       MAX_CONNECTIONS: 30
-      ACQUIRE_TIMEOUT: 5
+      ACQUIRE_TIMEOUT: 10
 
   nginx: # Load Balancer
     image: nginx:latest
@@ -55,4 +55,4 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: '1.8GB'
+          memory: '2GB'
