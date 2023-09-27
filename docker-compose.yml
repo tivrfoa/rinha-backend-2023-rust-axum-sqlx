@@ -1,7 +1,7 @@
 version: '3.5'
 services:
   api01: &api
-    image: axumsqlx:atomicsplittermosearch
+    image: axumsqlx:retryoncreate
     # build: .
     environment:
       HTTP_PORT: 8080
@@ -14,7 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
+          cpus: '0.2'
           memory: '0.35GB'
     network_mode: "host"
 

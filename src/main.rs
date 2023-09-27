@@ -6,19 +6,15 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::{PgPool, PgPoolOptions, Postgres};
-use sqlx::Pool;
+use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::net::SocketAddr;
 use std::time::Duration;
 use uuid::Uuid;
 
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
-
-static TERM_SEARCH_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 struct AppState {
     pool: PgPool,
@@ -26,16 +22,9 @@ struct AppState {
     http_client: reqwest::Client,
 }
 
-#[derive(Debug)]
-struct CacheTermoBusca {
-    termo: String,
-    pessoa: PessoaDTO,
-}
-
 struct Cache {
     pessoa_map: HashMap<String, PessoaDTO>,
     apelidos: HashSet<String>,
-    termos_busca: Vec<CacheTermoBusca>,
 }
 
 impl Cache {
@@ -43,11 +32,7 @@ impl Cache {
         self.pessoa_map.get(id).map(|p| p.clone())
     }
 
-    fn insert(&mut self, pessoa: PessoaDTO, busca_trgm: String) -> bool {
-        self.termos_busca.push(CacheTermoBusca {
-            termo: busca_trgm,
-            pessoa: pessoa.clone(),
-        });
+    fn insert(&mut self, pessoa: PessoaDTO) -> bool {
         self.apelidos.insert(pessoa.apelido.clone());
         self.pessoa_map.insert(pessoa.id.clone(), pessoa);
         false
@@ -55,21 +40,6 @@ impl Cache {
 
     fn apelido_exists(&self, apelido: &str) -> bool {
         self.apelidos.contains(apelido)
-    }
-
-    fn pesquisar_termo(&self, termo: &str) -> Vec<PessoaDTO> {
-        // println!("pesquisando {termo}");
-        // dbg!(&self.termos_busca);
-        let mut pessoas: Vec<PessoaDTO> = Vec::with_capacity(50);
-        for tb in &self.termos_busca {
-            if tb.termo.contains(termo) {
-                pessoas.push(tb.pessoa.clone());
-                if pessoas.len() == 50 {
-                    break;
-                }
-            }
-        }
-        pessoas
     }
 }
 
@@ -99,7 +69,6 @@ async fn main() {
     let cache: Mutex<Cache> = Mutex::new(Cache {
         pessoa_map: HashMap::new(),
         apelidos: HashSet::new(),
-        termos_busca: Vec::with_capacity(46576),
     });
 
     let app_state = Arc::new(AppState {
@@ -113,7 +82,7 @@ async fn main() {
         .route("/pessoas/:id", get(consultar_pessoa))
         .route("/pessoas", post(criar_pessoa).get(pesquisar_termo))
         .route("/contagem-pessoas", get(contagem_pessoas))
-        .route("/pessoas/cache", post(cache_pessoa))
+		.route("/pessoas/cache", post(cache_pessoa))
         .with_state(app_state);
 
     if let Ok(brother_port) = std::env::var("BROTHER_PORT") {
@@ -170,27 +139,9 @@ async fn pesquisar_termo(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let qt = TERM_SEARCH_COUNT.fetch_add(1, Ordering::SeqCst);
-    if qt % 5 == 0 {
-        Ok(Json(
-            shared_state
-                .cache
-                .lock()
-                .unwrap()
-                .pesquisar_termo(&termo.t.to_lowercase()),
-        ))
-    } else {
-        query_term_on_db(&termo.t, &shared_state.pool).await
-    }
-}
-
-async fn query_term_on_db(
-    termo: &str,
-    pool: &Pool<Postgres>,
-) -> Result<Json<Vec<PessoaDTO>>, StatusCode> {
-    let mut t = String::with_capacity(termo.len() + 2);
+    let mut t = String::with_capacity(termo.t.len() + 2);
     t.push('%');
-    t.push_str(termo);
+    t.push_str(&termo.t);
     t.push('%');
 
     let query_result = sqlx::query_as!(
@@ -201,12 +152,12 @@ async fn query_term_on_db(
          LIMIT 50"#,
         t.to_lowercase()
     )
-    .fetch_all(pool)
+    .fetch_all(&shared_state.pool)
     .await;
     match query_result {
         Ok(pessoas) => Ok(Json(pessoas)),
         Err(e) => {
-            println!("ERROR pesquisar_termo: {:?}", e);
+            // println!("ERROR pesquisar_termo: {:?}", e);
             Ok(Json(vec![]))
         }
     }
@@ -240,7 +191,7 @@ async fn criar_pessoa(
         req.nome,
         req.nascimento,
         req.stack.as_deref(),
-        busca_trgm.clone(),
+        busca_trgm,
     )
     .execute(&shared_state.pool)
     .await;
@@ -252,15 +203,36 @@ async fn criar_pessoa(
                 .cache
                 .lock()
                 .unwrap()
-                .insert(pessoa, busca_trgm);
+                .insert(pessoa);
             Ok((
                 StatusCode::CREATED,
                 [("location", format!("/pessoas/{}", id))],
             ))
         }
         Err(e) => {
-            println!("ERROR criar_pessoa: {:?}", e);
-            Err(StatusCode::UNPROCESSABLE_ENTITY)
+			if matches!(e, sqlx::Error::PoolTimedOut) {
+				match retry_criar_on_PoolTimeOut(&shared_state.http_client, &req).await {
+					Ok(id) => {
+						let pessoa = PessoaDTO::from_CriarPessoaDTO(id.to_string(), &req);
+						replicate_cache(&shared_state.http_client, &pessoa).await;
+						shared_state
+							.cache
+							.lock()
+							.unwrap()
+							.insert(pessoa);
+						Ok((
+							StatusCode::CREATED,
+							[("location", format!("/pessoas/{}", id))],
+						))
+					}
+					Err(_) => {
+						Err(StatusCode::INTERNAL_SERVER_ERROR)
+					}
+				}
+			} else {
+				// println!("ERROR criar_pessoa: {:?}", e);
+				Err(StatusCode::UNPROCESSABLE_ENTITY)
+			}
         }
     }
 }
@@ -270,8 +242,7 @@ async fn cache_pessoa(
     State(shared_state): State<Arc<AppState>>,
     Json(req): Json<PessoaDTO>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let busca_trgm = create_busca_trgm(&req.nome, &req.apelido, &req.stack);
-    shared_state.cache.lock().unwrap().insert(req, busca_trgm);
+    shared_state.cache.lock().unwrap().insert(req);
     Ok(())
 }
 
@@ -285,7 +256,70 @@ async fn replicate_cache(http_client: &reqwest::Client, pessoa: &PessoaDTO) {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[allow(non_snake_case)]
+async fn retry_criar_on_PoolTimeOut(http_client: &reqwest::Client, pessoa: &CriarPessoaDTO) -> Result<String, StatusCode> {
+	let url = unsafe {
+        if let Some(url) = &BROTHER_URL {
+			url.to_string()
+        } else {
+			format!("http://localhost:{PORT}/pessoas")
+		}
+    };
+	match http_client.post(url).json(pessoa).send().await {
+		Ok(res) => {
+			if res.status() == reqwest::StatusCode::CREATED {
+				let mut location = res.headers()["location"].to_str().unwrap().split('/');
+				location.next();
+				location.next();
+				let id = location.next().unwrap();
+
+				Ok(id.to_string())
+			} else {
+				println!("Bad Retry Response: {}", res.status());
+				Err(StatusCode::INTERNAL_SERVER_ERROR)
+			}
+		}
+		Err(e) => {
+			println!("Retry error: {:?}", e);
+			Err(StatusCode::INTERNAL_SERVER_ERROR)
+		}
+	}
+}
+
+#[allow(non_snake_case)]
+async fn retry_pesquisar_on_PoolTimeOut(http_client: &reqwest::Client, pessoa: CriarPessoaDTO) -> Result<String, StatusCode> {
+	let url = unsafe {
+        if let Some(url) = &BROTHER_URL {
+			url.to_string()
+        } else {
+			format!("http://localhost:{PORT}/pessoas?")
+		}
+    };
+	match http_client.post(url).json(&pessoa).send().await {
+		Ok(res) => {
+			match res.headers()["location"].to_str() {
+				Ok(l) => {
+					let mut location = l.split('/');
+					location.next();
+					location.next();
+					let id = location.next().unwrap();
+
+					Ok(id.to_string())
+				}
+				Err(e) => {
+					println!("No header location ?!!! {}", e);
+					Err(StatusCode::INTERNAL_SERVER_ERROR)
+				}
+			}
+		}
+		Err(e) => {
+			println!("Retry error: {:?}", e);
+			Err(StatusCode::INTERNAL_SERVER_ERROR)
+		}
+	}
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CriarPessoaDTO {
     pub apelido: String,
     pub nome: String,
