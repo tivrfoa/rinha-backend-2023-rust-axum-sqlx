@@ -157,8 +157,12 @@ async fn pesquisar_termo(
     match query_result {
         Ok(pessoas) => Ok(Json(pessoas)),
         Err(e) => {
-            // println!("ERROR pesquisar_termo: {:?}", e);
-            Ok(Json(vec![]))
+			if matches!(e, sqlx::Error::PoolTimedOut) {
+				Err(StatusCode::INTERNAL_SERVER_ERROR)
+			} else {
+				println!("ERROR pesquisar_termo: {}", e);
+				Ok(Json(vec![]))
+			}
         }
     }
 }
@@ -211,26 +215,9 @@ async fn criar_pessoa(
         }
         Err(e) => {
 			if matches!(e, sqlx::Error::PoolTimedOut) {
-				match retry_criar_on_PoolTimeOut(&shared_state.http_client, &req).await {
-					Ok(id) => {
-						let pessoa = PessoaDTO::from_CriarPessoaDTO(id.to_string(), &req);
-						replicate_cache(&shared_state.http_client, &pessoa).await;
-						shared_state
-							.cache
-							.lock()
-							.unwrap()
-							.insert(pessoa);
-						Ok((
-							StatusCode::CREATED,
-							[("location", format!("/pessoas/{}", id))],
-						))
-					}
-					Err(_) => {
-						Err(StatusCode::INTERNAL_SERVER_ERROR)
-					}
-				}
+				Err(StatusCode::INTERNAL_SERVER_ERROR)
 			} else {
-				// println!("ERROR criar_pessoa: {:?}", e);
+				println!("ERROR criar_pessoa: {}", e);
 				Err(StatusCode::UNPROCESSABLE_ENTITY)
 			}
         }
@@ -254,69 +241,6 @@ async fn replicate_cache(http_client: &reqwest::Client, pessoa: &PessoaDTO) {
             }
         }
     }
-}
-
-#[allow(non_snake_case)]
-async fn retry_criar_on_PoolTimeOut(http_client: &reqwest::Client, pessoa: &CriarPessoaDTO) -> Result<String, StatusCode> {
-	let url = unsafe {
-        if let Some(url) = &BROTHER_URL {
-			url.to_string()
-        } else {
-			format!("http://localhost:{PORT}/pessoas")
-		}
-    };
-	match http_client.post(url).json(pessoa).send().await {
-		Ok(res) => {
-			if res.status() == reqwest::StatusCode::CREATED {
-				let mut location = res.headers()["location"].to_str().unwrap().split('/');
-				location.next();
-				location.next();
-				let id = location.next().unwrap();
-
-				Ok(id.to_string())
-			} else {
-				println!("Bad Retry Response: {}", res.status());
-				Err(StatusCode::INTERNAL_SERVER_ERROR)
-			}
-		}
-		Err(e) => {
-			println!("Retry error: {:?}", e);
-			Err(StatusCode::INTERNAL_SERVER_ERROR)
-		}
-	}
-}
-
-#[allow(non_snake_case)]
-async fn retry_pesquisar_on_PoolTimeOut(http_client: &reqwest::Client, pessoa: CriarPessoaDTO) -> Result<String, StatusCode> {
-	let url = unsafe {
-        if let Some(url) = &BROTHER_URL {
-			url.to_string()
-        } else {
-			format!("http://localhost:{PORT}/pessoas?")
-		}
-    };
-	match http_client.post(url).json(&pessoa).send().await {
-		Ok(res) => {
-			match res.headers()["location"].to_str() {
-				Ok(l) => {
-					let mut location = l.split('/');
-					location.next();
-					location.next();
-					let id = location.next().unwrap();
-
-					Ok(id.to_string())
-				}
-				Err(e) => {
-					println!("No header location ?!!! {}", e);
-					Err(StatusCode::INTERNAL_SERVER_ERROR)
-				}
-			}
-		}
-		Err(e) => {
-			println!("Retry error: {:?}", e);
-			Err(StatusCode::INTERNAL_SERVER_ERROR)
-		}
-	}
 }
 
 #[derive(Debug, Deserialize, Serialize)]

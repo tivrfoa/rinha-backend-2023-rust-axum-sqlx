@@ -1,21 +1,21 @@
 version: '3.5'
 services:
   api01: &api
-    image: axumsqlx:retryoncreate
+    image: axumsqlx:koonerror
     # build: .
     environment:
       HTTP_PORT: 8080
       BROTHER_PORT: 8081
       DB_HOST: localhost
-      MAX_CONNECTIONS: 10
-      ACQUIRE_TIMEOUT: 5
+      MAX_CONNECTIONS: 30
+      ACQUIRE_TIMEOUT: 10
     depends_on:
       - db
     deploy:
       resources:
         limits:
           cpus: '0.2'
-          memory: '0.35GB'
+          memory: '0.3GB'
     network_mode: "host"
 
   api02:
@@ -56,5 +56,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: '1.9GB'
+          cpus: '1.2'
+          memory: '2GB'
