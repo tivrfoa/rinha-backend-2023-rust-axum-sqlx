@@ -1,10 +1,12 @@
 version: '3.5'
 services:
   api01: &api
-    image: axumsqlx:concattrgmondb
+    image: axumsqlx:dbunixconn
     # build: .
     environment:
       HTTP_PORT: 8080
+      # DB_URL: "postgres:///rinhadb?user=root&host=/var/run/postgresql"
+      DB_URL: "postgres:///rinhadb?user=root&host=%2fvar%2frun%2fpostgresql"
       DB_HOST: localhost
       MAX_CONNECTIONS: 30
       ACQUIRE_TIMEOUT: 10
@@ -16,11 +18,14 @@ services:
           cpus: '0.15'
           memory: '0.3GB'
     network_mode: "host"
+    volumes:
+      - "./postgres/socket:/var/run/postgresql"
 
   api02:
     <<: *api
     environment:
       HTTP_PORT: 8081
+      DB_URL: "postgres:///rinhadb?user=root&host=%2fvar%2frun%2fpostgresql"
       DB_HOST: localhost
       MAX_CONNECTIONS: 30
       ACQUIRE_TIMEOUT: 10
@@ -47,6 +52,7 @@ services:
       POSTGRES_PASSWORD: 1234
       POSTGRES_DB: rinhadb
     volumes:
+      - "./postgres/socket:/var/run/postgresql"
       - ./postgresql.conf:/etc/postgresql.conf
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     command: postgres -c config_file=/etc/postgresql.conf

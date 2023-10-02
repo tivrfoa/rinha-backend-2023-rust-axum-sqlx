@@ -11,7 +11,8 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use uuid::Uuid;
 
-const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
+// const DATABASE_URL: &str = "postgres://root:1234@localhost/rinhadb";
+// const DATABASE_URL: &str = "/var/run/postgresql/.s.PGSQL.5432";
 
 #[tokio::main]
 async fn main() {
@@ -25,11 +26,14 @@ async fn main() {
         .unwrap();
     println!("Max connections: {max_connections}\nAcquire Timeout: {acquire_timeout}");
 
+	let database_url = &std::env::var("DB_URL").unwrap();
+    println!("Database URL: {database_url}");
+
     // set up connection pool
     let pool = PgPoolOptions::new()
         .max_connections(max_connections)
         .acquire_timeout(Duration::from_secs(acquire_timeout))
-        .connect(DATABASE_URL)
+        .connect(database_url)
         .await
         .expect("can't connect to database");
 
@@ -45,7 +49,7 @@ async fn main() {
         .parse::<u16>()
         .unwrap();
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    println!("listening on {}", addr);
+    println!("Listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
